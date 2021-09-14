@@ -4,6 +4,9 @@ package com.jingju.jnitest;
 
 import android.widget.EditText;
 
+/**
+ * 基于posix phtread
+ */
 public class Threads {
 
     static {
@@ -14,6 +17,8 @@ public class Threads {
     private ThreadsNativeCallBack mNativeCallBack;
     /**
      * java api 开启线程
+     * java thread 不能和底层的pthread_mutext_t 互斥量混用，会出错
+     *
      * @param threads
      * @param iterations
      */

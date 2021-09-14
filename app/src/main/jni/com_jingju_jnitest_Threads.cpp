@@ -24,6 +24,11 @@ static JavaVM *gVm = nullptr;//虚拟机的一个引用
 
 static jobject gObj = nullptr;//java对象的一个引用
 
+static pthread_mutex_t mutex;//互斥量
+static void throwRuntimeException(JNIEnv * env,char * message){
+    jclass exceptionClazz = env->FindClass("java/lang/RuntimeException");
+    env->ThrowNew(exceptionClazz, message);
+}
 static void nativeWorker(JNIEnv *env, jobject obj, jint id, jint iterations) {
     for (jint i = 0; i < iterations; i++) {
         char message[26];
@@ -50,8 +55,16 @@ static void *nativeWorkerThread(void *args) {
     if (0 == gVm->AttachCurrentThread(&env, nullptr)) {
 
         NativeWorkerArgs *nativeWorkerArgs = (NativeWorkerArgs *) args;
-
+        if(0!=pthread_mutex_lock(&mutex)){
+            throwRuntimeException(env,"unable to lock mutext");
+            return (void *) -1;
+        }
         nativeWorker(env, gObj, nativeWorkerArgs->id, nativeWorkerArgs->iterations);
+
+        if(0!=pthread_mutex_unlock(&mutex)){
+            throwRuntimeException(env,"unable to unlock mutex");
+            return (void *) -1;
+        }
 
         delete nativeWorkerArgs;
 
@@ -73,6 +86,12 @@ static void *nativeWorkerThread(void *args) {
  */
 JNIEXPORT void JNICALL Java_com_jingju_jnitest_Threads_nativeInit
         (JNIEnv *env, jobject obj) {
+    //初始化互斥量
+    if(0!=pthread_mutex_init(&mutex,nullptr)){
+        jclass exceptionClazz = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exceptionClazz, "unable to initialize mutex");
+        return;
+    }
 
     if (nullptr == gObj) {//缓存一个java对象的引用到本地
         gObj = env->NewGlobalRef(obj);
@@ -94,8 +113,6 @@ JNIEXPORT void JNICALL Java_com_jingju_jnitest_Threads_nativeInit
 
         }
     }
-
-
 }
 
 /*
@@ -109,8 +126,11 @@ JNIEXPORT void JNICALL Java_com_jingju_jnitest_Threads_nativeFree
         env->DeleteGlobalRef(gObj);
         gObj = nullptr;
     }
-
-
+    //释放互斥量
+    if(0!=pthread_mutex_destroy(&mutex)){
+        jclass exceptionClazz = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exceptionClazz, "unable to destroy mutex");
+    }
 }
 
 /*
@@ -118,20 +138,24 @@ JNIEXPORT void JNICALL Java_com_jingju_jnitest_Threads_nativeFree
  * Method:    nativeWorker
  * Signature: (II)V
  */
+/**
+ * 没有使用互斥量的woker
+ */
+//JNIEXPORT void JNICALL Java_com_jingju_jnitest_Threads_nativeWorker
+//        (JNIEnv *env, jobject obj, jint id, jint iterations) {
+//
+//    nativeWorker(env, obj, id, iterations);
+//}
+/**
+ * 使用互斥量的worker
+ * @param env
+ * @param obj
+ * @param id
+ * @param iterations
+ */
 JNIEXPORT void JNICALL Java_com_jingju_jnitest_Threads_nativeWorker
         (JNIEnv *env, jobject obj, jint id, jint iterations) {
 
-//    for (jint i = 0; i < iterations; i++) {
-//        char message[26];
-//        sprintf(message, "worker %d : iteration %d", id, i);
-//        jstring messageString = env->NewStringUTF(message);
-//
-//        env->CallVoidMethod(obj, gOnNativeMessage, messageString);
-//        if (nullptr != env->ExceptionOccurred()) {
-//            break;
-//        }
-//        sleep(1);//睡眠1s
-//    }
     nativeWorker(env, obj, id, iterations);
 }
 /**

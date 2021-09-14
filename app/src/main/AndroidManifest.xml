@@ -18,6 +18,8 @@
         </activity>
 
         <activity android:name=".ThreadsTestActivity"/>
+        <activity android:name=".EchoClientActivity"/>
+        <activity android:name=".EchoServerActivity"/>
     </application>
 
 </manifest>

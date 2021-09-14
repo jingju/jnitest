@@ -61,12 +61,17 @@ public class ThreadsTestActivity extends AppCompatActivity implements View.OnCli
 
     private void startThreads(int threads,int iterations){
         mThreads.posixThreads(threads,iterations);
+//        mThreads.javaThreads(threads,iterations);
     }
 
 
     @Override
     public void onNativieMessage(String message) {
         //tip:回调还是在子线程，要想更新Ui得发送到主线程，或者调用runOnUiThread。
+        /**
+         * 底层采用互斥量
+         * 采用runOnUIThread，打印会出现错误，会先打印returen
+         */
 //        runOnUiThread(() -> {
             Log.d("onNativieMessage",message);
 //            logView.append(message);
